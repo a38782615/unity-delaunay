@@ -21,109 +21,137 @@
  */
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using UnityEngine;
+using Unity.Mathematics;
 
-namespace GK {
-	public class VoronoiClipper {
+namespace Delaunay
+{
+    public class VoronoiClipper
+    {
+        List<float2> pointsIn = new List<float2>();
+        List<float2> pointsOut = new List<float2>();
 
-		List<Vector2> pointsIn = new List<Vector2>();
-		List<Vector2> pointsOut = new List<Vector2>();
+        /// <summary>
+        /// Create a new Voronoi clipper
+        /// </summary>
+        public VoronoiClipper()
+        {
+        }
 
-		/// <summary>
-		/// Create a new Voronoi clipper
-		/// </summary>
-		public VoronoiClipper() { }
 
-		
-		/// <summary>
-		/// Clip site of voronoi diagram using polygon (must be convex),
-		/// returning the clipped vertices in clipped list. Modifies neither
-		/// polygon nor diagram, so can be run in parallel for several sites at
-		/// once. 
-		/// </summary>
-		public void ClipSite(VoronoiDiagram diag, IList<Vector2> polygon, int site, ref List<Vector2> clipped) {
-			pointsIn.Clear();
+        /// <summary>
+        /// Clip site of voronoi diagram using polygon (must be convex),
+        /// returning the clipped vertices in clipped list. Modifies neither
+        /// polygon nor diagram, so can be run in parallel for several sites at
+        /// once. 
+        /// </summary>
+        public void ClipSite(VoronoiDiagram diag, IList<float2> polygon, int site, ref List<float2> clipped)
+        {
+            pointsIn.Clear();
 
-			pointsIn.AddRange(polygon);
+            pointsIn.AddRange(polygon);
 
-			int firstEdge, lastEdge;
-			
-			if (site == diag.Sites.Count - 1) {
-				firstEdge = diag.FirstEdgeBySite[site];
-				lastEdge = diag.Edges.Count - 1;
-			} else {
-				firstEdge = diag.FirstEdgeBySite[site];
-				lastEdge = diag.FirstEdgeBySite[site + 1] - 1;
-			}
+            int firstEdge, lastEdge;
 
-			for (int ei = firstEdge; ei <= lastEdge; ei++) {
-				pointsOut.Clear();
+            if (site == diag.Sites.Count - 1)
+            {
+                firstEdge = diag.FirstEdgeBySite[site];
+                lastEdge = diag.Edges.Count - 1;
+            }
+            else
+            {
+                firstEdge = diag.FirstEdgeBySite[site];
+                lastEdge = diag.FirstEdgeBySite[site + 1] - 1;
+            }
 
-				var edge = diag.Edges[ei];
+            for (int ei = firstEdge; ei <= lastEdge; ei++)
+            {
+                pointsOut.Clear();
 
-				Vector2 lp, ld;
+                var edge = diag.Edges[ei];
 
-				if (edge.Type == VoronoiDiagram.EdgeType.RayCCW || edge.Type == VoronoiDiagram.EdgeType.RayCW) {
-					lp = diag.Vertices[edge.Vert0];
-					ld = edge.Direction;
+                float2 lp, ld;
 
-					if (edge.Type == VoronoiDiagram.EdgeType.RayCW) {
-						ld *= -1;
-					}
-				} else if (edge.Type == VoronoiDiagram.EdgeType.Segment) {
-					var lp0 = diag.Vertices[edge.Vert0];
-					var lp1 = diag.Vertices[edge.Vert1];
+                if (edge.Type == VoronoiDiagram.EdgeType.RayCCW || edge.Type == VoronoiDiagram.EdgeType.RayCW)
+                {
+                    lp = diag.Vertices[edge.Vert0];
+                    ld = edge.Direction;
 
-					lp = lp0;
-					ld = lp1 - lp0;
-				} else if (edge.Type == VoronoiDiagram.EdgeType.Line) {
-					throw new NotSupportedException("Haven't implemented voronoi halfplanes yet");
-				} else {
-					Debug.Assert(false);
-					return;
-				}
+                    if (edge.Type == VoronoiDiagram.EdgeType.RayCW)
+                    {
+                        ld *= -1;
+                    }
+                }
+                else if (edge.Type == VoronoiDiagram.EdgeType.Segment)
+                {
+                    var lp0 = diag.Vertices[edge.Vert0];
+                    var lp1 = diag.Vertices[edge.Vert1];
 
-				for (int pi0 = 0; pi0 < pointsIn.Count; pi0++) {
-					var pi1 = pi0 == pointsIn.Count - 1 ? 0 : pi0 + 1;
+                    lp = lp0;
+                    ld = lp1 - lp0;
+                }
+                else if (edge.Type == VoronoiDiagram.EdgeType.Line)
+                {
+                    throw new NotSupportedException("Haven't implemented voronoi halfplanes yet");
+                }
+                else
+                {
+                    return;
+                }
 
-					var p0 = pointsIn[pi0];
-					var p1 = pointsIn[pi1];
+                for (int pi0 = 0; pi0 < pointsIn.Count; pi0++)
+                {
+                    var pi1 = pi0 == pointsIn.Count - 1 ? 0 : pi0 + 1;
 
-					var p0Inside = Geom.ToTheLeft(p0, lp, lp + ld);
-					var p1Inside = Geom.ToTheLeft(p1, lp, lp + ld);
+                    var p0 = pointsIn[pi0];
+                    var p1 = pointsIn[pi1];
 
-					if (p0Inside && p1Inside) {
-						pointsOut.Add(p1);
-					} else if (!p0Inside && !p1Inside) {
-						// Do nothing, both are outside
-					} else {
-						var intersection = Geom.LineLineIntersection(lp, ld.normalized, p0, (p1 - p0).normalized);
+                    var p0Inside = Geom.ToTheLeft(p0, lp, lp + ld);
+                    var p1Inside = Geom.ToTheLeft(p1, lp, lp + ld);
 
-						if (p0Inside) {
-							pointsOut.Add(intersection);
-						} else if (p1Inside) {
-							pointsOut.Add(intersection);
-							pointsOut.Add(p1);
-						} else {
-							Debug.Assert(false);
-						}
-					}
-				}
+                    if (p0Inside && p1Inside)
+                    {
+                        pointsOut.Add(p1);
+                    }
+                    else if (!p0Inside && !p1Inside)
+                    {
+                        // Do nothing, both are outside
+                    }
+                    else
+                    {
+                        var intersection = Geom.LineLineIntersection(lp, math.normalize(ld), p0, math.normalize(p1 - p0));
 
-				var tmp = pointsIn;
-				pointsIn = pointsOut;
-				pointsOut = tmp;
-			}
+                        if (p0Inside)
+                        {
+                            pointsOut.Add(intersection);
+                        }
+                        else if (p1Inside)
+                        {
+                            pointsOut.Add(intersection);
+                            pointsOut.Add(p1);
+                        }
+                        else
+                        {
+                            return;
+                        }
+                    }
+                }
 
-			if (clipped == null) {
-				clipped = new List<Vector2>();
-			} else {
-				clipped.Clear();
-			}
+                var tmp = pointsIn;
+                pointsIn = pointsOut;
+                pointsOut = tmp;
+            }
 
-			clipped.AddRange(pointsIn);
-		}
-	}
+            if (clipped == null)
+            {
+                clipped = new List<float2>();
+            }
+            else
+            {
+                clipped.Clear();
+            }
+
+            clipped.AddRange(pointsIn);
+        }
+    }
 }

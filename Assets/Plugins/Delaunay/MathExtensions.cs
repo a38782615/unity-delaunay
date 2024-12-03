@@ -20,24 +20,33 @@
  * SOFTWARE.
  */
 
-using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+namespace Unity.Mathematics
+{
+    public static class MathExtensions
+    {
+        public static bool IsReal(this float f)
+        {
+            return !float.IsInfinity(f) && !float.IsNaN(f);
+        }
 
-namespace GK {
-	public static class VectorExtensions {
+        public static bool IsReal(this float2 v2)
+        {
+            return v2.x.IsReal() && v2.y.IsReal();
+        }
 
-		public static bool IsReal(this float f) {
-			return !float.IsInfinity(f) && !float.IsNaN(f);
-		}
+        public static bool IsReal(this float3 v3)
+        {
+            return v3.x.IsReal() && v3.y.IsReal() && v3.z.IsReal();
+        }
 
-		public static bool IsReal(this Vector2 v2) {
-			return v2.x.IsReal() && v2.y.IsReal();
-		}
+        public static float2 ToFloat2(this float3 v2)
+        {
+            return new float2(v2.x, v2.y);
+        }
 
-		public static bool IsReal(this Vector3 v3) {
-			return v3.x.IsReal() && v3.y.IsReal() && v3.z.IsReal();
-		}
-
-	}
+        public static float3 ToFloat3(this float2 v2)
+        {
+            return new float3(v2.x, v2.y, 0);
+        }
+    }
 }
